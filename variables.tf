@@ -9,9 +9,9 @@ variable "namespace" {
   type        = string
 }
 variable "local_manifests" {
-  description = "Create local manifests?"
+  description = "Create local manifests? Mostly for debugging"
   type        = bool
-  default     = true
+  default     = false
 }
 variable "project_id" {
   description = "GCP Project ID"

@@ -97,15 +97,13 @@ No modules.
 | Name | Description | Type | Default | Required |
 |------|-------------|------|---------|:--------:|
 | <a name="input_gcsm_secret_prefix"></a> [gcsm\_secret\_prefix](#input\_gcsm\_secret\_prefix) | Prefix for GCSM secrets | `string` | `"k8-"` | no |
-| <a name="input_local_manifests"></a> [local\_manifests](#input\_local\_manifests) | Create local manifests? | `bool` | `true` | no |
+| <a name="input_local_manifests"></a> [local\_manifests](#input\_local\_manifests) | Create local manifests? Mostly for debugging | `bool` | `false` | no |
 | <a name="input_namespace"></a> [namespace](#input\_namespace) | The name of the Kubernetes namespace to manage. | `string` | n/a | yes |
 | <a name="input_project_id"></a> [project\_id](#input\_project\_id) | GCP Project ID | `string` | n/a | yes |
 | <a name="input_project_number"></a> [project\_number](#input\_project\_number) | GCP Project Number | `string` | n/a | yes |
 
 ## Outputs
 
-| Name | Description |
-|------|-------------|
-| <a name="output_sample_output"></a> [sample\_output](#output\_sample\_output) | output value description |
+No outputs.
 
 <!-- END OF PRE-COMMIT-TERRAFORM DOCS HOOK -->
