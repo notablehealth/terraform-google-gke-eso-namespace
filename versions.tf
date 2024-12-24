@@ -1,26 +1,17 @@
-
 terraform {
-  required_version = ">= 1.3.7"
+  required_version = ">= 1.5"
   required_providers {
     google = {
       source  = "hashicorp/google"
-      version = ">= 4.51.0"
+      version = ">= 6.0"
+    }
+    kubernetes = {
+      source  = "hashicorp/kubernetes"
+      version = ">= 2.0.0"
+    }
+    local = {
+      source  = "hashicorp/local"
+      version = "~> 2.5.1"
     }
   }
 }
-
-###------------------
-### Usage
-###------------------
-
-#provider "google" {
-#  project     = "my-project-id"
-#  region      = "us-central1"
-#  zone        = "us-central1-c"
-#}
-
-#provider "google-beta" {
-#  project = "my-project-id"
-#  region  = "us-central1"
-#  zone    = "us-central1-c"
-#}

@@ -4,7 +4,7 @@
 # terraform-docs markdown . --recursive --output-file test.md
 
 formatter: markdown
-version: "0.16"
+version: "0.17"
 footer-from: ""
 header-from: main.tf
 #output:
@@ -55,10 +55,10 @@ content: |-
   {{"    " -}} # Recommend pinning every module to a specific version
   {{"    " -}} # version = "x.x.x"
   {{- if .Module.RequiredInputs }}
-    {{"\n    " -}} # Required variables
+  {{"\n    " -}} # Required variables
     {{- range .Module.RequiredInputs }}
-      {{"    " -}}{{ .Name }} ={{ .GetValue }}
-    {{- end }}
+    {{"  " -}}{{ .Name }} ={{ .GetValue }}
+  {{- end -}}
   {{- end }}
   }
   ```
