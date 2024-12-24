@@ -61,7 +61,7 @@ module "example" {
 | <a name="requirement_terraform"></a> [terraform](#requirement\_terraform) | >= 1.5 |
 | <a name="requirement_google"></a> [google](#requirement\_google) | >= 6.0 |
 | <a name="requirement_kubernetes"></a> [kubernetes](#requirement\_kubernetes) | >= 2.0.0 |
-| <a name="requirement_local"></a> [local](#requirement\_local) | ~> 2.5.1 |
+| <a name="requirement_local"></a> [local](#requirement\_local) | >= 2.5.1 |
 
 ## Providers
 
