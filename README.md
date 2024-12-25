@@ -6,7 +6,7 @@
 
 [Terraform Module Registry](https://registry.terraform.io/modules/notablehealth/gke-eso-namespace/google)
 
-Setup ESO in a GKE namespace
+Setup External Secrets Operator (ESO) in a GKE namespace
 
 ## Module sets up a Kubernetes namespace for ESO
 
@@ -14,7 +14,8 @@ Setup ESO in a GKE namespace
 - Create k8 namespace
 - Create Kubernetes secret with service account credentials for ESO
 - Create ESO secret store
-- Create ESO secret rule
+- Create ESO namespace secret rule
+- Create ESO shared secret rules
 
 ## Limitations
 
@@ -85,11 +86,13 @@ No modules.
 | [google_secret_manager_secret_version.self](https://registry.terraform.io/providers/hashicorp/google/latest/docs/resources/secret_manager_secret_version) | resource |
 | [google_service_account.self](https://registry.terraform.io/providers/hashicorp/google/latest/docs/resources/service_account) | resource |
 | [google_service_account_key.self](https://registry.terraform.io/providers/hashicorp/google/latest/docs/resources/service_account_key) | resource |
-| [kubernetes_manifest.eso_secret_rule](https://registry.terraform.io/providers/hashicorp/kubernetes/latest/docs/resources/manifest) | resource |
+| [kubernetes_manifest.eso_namespace_secrets](https://registry.terraform.io/providers/hashicorp/kubernetes/latest/docs/resources/manifest) | resource |
 | [kubernetes_manifest.eso_secret_store](https://registry.terraform.io/providers/hashicorp/kubernetes/latest/docs/resources/manifest) | resource |
+| [kubernetes_manifest.eso_shared_secrets](https://registry.terraform.io/providers/hashicorp/kubernetes/latest/docs/resources/manifest) | resource |
 | [kubernetes_namespace.self](https://registry.terraform.io/providers/hashicorp/kubernetes/latest/docs/resources/namespace) | resource |
 | [kubernetes_secret.sa](https://registry.terraform.io/providers/hashicorp/kubernetes/latest/docs/resources/secret) | resource |
-| [local_file.eso_secret_rule](https://registry.terraform.io/providers/hashicorp/local/latest/docs/resources/file) | resource |
+| [local_file.eso_namespace_secrets](https://registry.terraform.io/providers/hashicorp/local/latest/docs/resources/file) | resource |
+| [local_file.eso_shared_secrets](https://registry.terraform.io/providers/hashicorp/local/latest/docs/resources/file) | resource |
 | [local_file.k8_eso_secret_store](https://registry.terraform.io/providers/hashicorp/local/latest/docs/resources/file) | resource |
 
 ## Inputs
@@ -99,8 +102,13 @@ No modules.
 | <a name="input_gcsm_secret_prefix"></a> [gcsm\_secret\_prefix](#input\_gcsm\_secret\_prefix) | Prefix for GCSM secrets | `string` | `"k8-"` | no |
 | <a name="input_local_manifests"></a> [local\_manifests](#input\_local\_manifests) | Create local manifests? Mostly for debugging | `bool` | `false` | no |
 | <a name="input_namespace"></a> [namespace](#input\_namespace) | The name of the Kubernetes namespace to manage. | `string` | n/a | yes |
+| <a name="input_namespace_secret_name"></a> [namespace\_secret\_name](#input\_namespace\_secret\_name) | Kubernetes namespace secret name. | `string` | `"all"` | no |
 | <a name="input_project_id"></a> [project\_id](#input\_project\_id) | GCP Project ID | `string` | n/a | yes |
 | <a name="input_project_number"></a> [project\_number](#input\_project\_number) | GCP Project Number | `string` | n/a | yes |
+| <a name="input_secret_separator"></a> [secret\_separator](#input\_secret\_separator) | Separator for GCSM secrets between namespace and secret key | `string` | `"__"` | no |
+| <a name="input_shared_prefix"></a> [shared\_prefix](#input\_shared\_prefix) | GCSM secret prefix for shared secrets | `string` | `"global"` | no |
+| <a name="input_shared_secret_name"></a> [shared\_secret\_name](#input\_shared\_secret\_name) | Kubernetes shared secret name. | `string` | `"global"` | no |
+| <a name="input_shared_secrets"></a> [shared\_secrets](#input\_shared\_secrets) | Shared secrets list | `list(string)` | `[]` | no |
 
 ## Outputs
 

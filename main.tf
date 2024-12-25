@@ -5,7 +5,7 @@
  *
  * [Terraform Module Registry](https://registry.terraform.io/modules/notablehealth/gke-eso-namespace/google)
  *
- * Setup ESO in a GKE namespace
+ * Setup External Secrets Operator (ESO) in a GKE namespace
  *
  * ## Module sets up a Kubernetes namespace for ESO
  *
@@ -13,7 +13,8 @@
  * - Create k8 namespace
  * - Create Kubernetes secret with service account credentials for ESO
  * - Create ESO secret store
- * - Create ESO secret rule
+ * - Create ESO namespace secret rule
+ * - Create ESO shared secret rules
  *
  * ## Limitations
  *
@@ -55,13 +56,13 @@ locals {
   # Allow k8-global, k8-namespace, and legacy prefixes (namespace, {namespace with _}, global)
   prefixes = [
     "${var.gcsm_secret_prefix}${var.namespace}",
-    "${var.gcsm_secret_prefix}global",
+    "${var.gcsm_secret_prefix}${var.shared_prefix}",
     replace(var.namespace, "/[_-]/", "_"),
     replace(var.namespace, "/[_-]/", "-"),
-    "global",
+    var.shared_prefix,
   ]
   expression = join(" || ", [
-    for prefix in local.prefixes : "resource.name.startsWith(\"projects/${var.project_number}/secrets/${prefix}__\")"
+    for prefix in local.prefixes : "resource.name.startsWith(\"projects/${var.project_number}/secrets/${prefix}${var.secret_separator}\")"
   ])
 }
 resource "google_project_iam_member" "secretAccessor" {
@@ -103,6 +104,7 @@ resource "google_secret_manager_secret_version" "self" {
   secret_data = base64decode(google_service_account_key.self.private_key)
 }
 
+# Add secret to k8 namespace for ESO
 resource "kubernetes_secret" "sa" {
   metadata {
     name      = "${var.gcsm_secret_prefix}${var.namespace}-sa"
@@ -148,8 +150,6 @@ resource "kubernetes_manifest" "eso_secret_store" {
   # wait {}
   # timeouts {}
   depends_on = [
-    google_secret_manager_secret_version.self,
-    kubernetes_namespace.self,
     kubernetes_secret.sa
   ]
 }
@@ -165,26 +165,49 @@ resource "local_file" "k8_eso_secret_store" {
 }
 
 ###--------------------------------
-### ESO external secret manifest
+### ESO namespace secrets manifest
 ###--------------------------------
-resource "kubernetes_manifest" "eso_secret_rule" {
+resource "kubernetes_manifest" "eso_namespace_secrets" {
   manifest = yamldecode(templatefile("${path.module}/templates/k8-eso-secret-rule.yaml.tmpl", {
     k8_namespace       = var.namespace
+    k8_secret          = var.namespace_secret_name
     gcsm_secret_prefix = var.gcsm_secret_prefix
   }))
-  #field_manager {
-  #  name = "external-secrets"
-  #}
-  # wait {}
-  # timeouts {}
   depends_on = [kubernetes_manifest.eso_secret_store]
 }
-resource "local_file" "eso_secret_rule" {
+resource "local_file" "eso_namespace_secrets" {
   count = var.local_manifests ? 1 : 0
   content = templatefile("${path.module}/templates/k8-eso-secret-rule.yaml.tmpl", {
     k8_namespace       = var.namespace
+    k8_secret          = var.namespace_secret_name
     gcsm_secret_prefix = var.gcsm_secret_prefix
   })
-  filename        = "${path.module}/manifests/${var.project_id}/${var.namespace}/secret-rule.yaml"
+  filename        = "${path.module}/manifests/${var.project_id}/${var.namespace}/secrets-namespace.yaml"
+  file_permission = "0644"
+}
+
+###--------------------------------
+### ESO shared secrets manifest
+###--------------------------------
+locals {
+  shared_header = templatefile("${path.module}/templates/k8-eso-secret-header.yaml.tmpl", {
+    k8_namespace = var.namespace
+    k8_secret    = var.shared_secret_name
+  })
+  shared_keys = [
+    for key in var.shared_secrets : templatefile("${path.module}/templates/k8-eso-secret-key.yaml.tmpl", {
+      k8_key     = key
+      gcp_secret = "${var.gcsm_secret_prefix}${var.shared_prefix}${var.secret_separator}${key}"
+  })]
+  shared_manifest = join("\n", concat([local.shared_header], local.shared_keys))
+}
+resource "kubernetes_manifest" "eso_shared_secrets" {
+  manifest   = yamldecode(local.shared_manifest)
+  depends_on = [kubernetes_manifest.eso_secret_store]
+}
+resource "local_file" "eso_shared_secrets" {
+  count           = var.local_manifests ? 1 : 0
+  content         = local.shared_manifest
+  filename        = "${path.module}/manifests/${var.project_id}/${var.namespace}/secrets-shared.yaml"
   file_permission = "0644"
 }
