@@ -1,6 +1,15 @@
 
-variable "gcsm_secret_prefix" {
-  description = "Prefix for GCSM secrets"
+variable "cluster_location" {
+  description = "GKE cluster location"
+  type        = string
+  default     = "us-central1"
+}
+variable "cluster_name" {
+  description = "GKE cluster name"
+  type        = string
+}
+variable "gcpsm_secret_prefix" {
+  description = "Prefix for GCPSM secrets"
   type        = string
   default     = "k8-"
 }
@@ -27,7 +36,7 @@ variable "project_number" {
   type        = string
 }
 variable "shared_prefix" {
-  description = "GCSM secret prefix for shared secrets"
+  description = "GCPSM secret prefix for shared secrets"
   type        = string
   default     = "global"
 }
@@ -37,7 +46,7 @@ variable "shared_secret_name" {
   default     = "global"
 }
 variable "secret_separator" {
-  description = "Separator for GCSM secrets between namespace and secret key"
+  description = "Separator for GCPSM secrets between namespace and secret key"
   type        = string
   default     = "__"
 }

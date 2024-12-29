@@ -11,7 +11,7 @@
  *
  * - Create GCP service account
  * - Create k8 namespace
- * - Create Kubernetes secret with service account credentials for ESO
+ * - Create Kubernetes service account for ESO
  * - Create ESO secret store
  * - Create ESO namespace secret rule
  * - Create ESO shared secret rules
@@ -20,7 +20,7 @@
  *
  * - Kubernetes secrets are limited to 1 MB
  *
- * ## Provider setup
+ * ## Provider setup required in calling module
  *
  * Access GKE cluster with DNS endpoint
  *
@@ -31,9 +31,22 @@
  *   location = var.cluster_location
  *   project  = var.project_id
  * }
+ * provider "kubectl" {
+ *   host             = "https://${data.google_container_cluster.self.control_plane_endpoints_config[0].dns_endpoint_config[0].endpoint}"
+ *   token            = data.google_client_config.self.access_token
+ *   load_config_file = false
+ * }
  * provider "kubernetes" {
  *   host  = "https://${data.google_container_cluster.self.control_plane_endpoints_config[0].dns_endpoint_config[0].endpoint}"
  *   token = data.google_client_config.self.access_token
+ * }
+ * terraform {
+ *   required_providers {
+ *     kubectl = {
+ *       source  = "gavinbunney/kubectl"
+ *       version = ">= 1.18.0"
+ *     }
+ *   }
  * }
  * ```
  *
@@ -46,7 +59,7 @@
 ### GCP Service Account
 ###--------------------------------
 resource "google_service_account" "self" {
-  account_id   = "${var.gcsm_secret_prefix}${var.namespace}-sa"
+  account_id   = "${var.gcpsm_secret_prefix}${var.cluster_name}-${var.namespace}"
   description  = "Permissions for ESO to access secrets for ${var.namespace}"
   display_name = "ESO Secret Access for ${var.namespace}"
   project      = var.project_id
@@ -55,8 +68,8 @@ resource "google_service_account" "self" {
 locals {
   # Allow k8-global, k8-namespace, and legacy prefixes (namespace, {namespace with _}, global)
   prefixes = [
-    "${var.gcsm_secret_prefix}${var.namespace}",
-    "${var.gcsm_secret_prefix}${var.shared_prefix}",
+    "${var.gcpsm_secret_prefix}${var.namespace}",
+    "${var.gcpsm_secret_prefix}${var.shared_prefix}",
     replace(var.namespace, "/[_-]/", "_"),
     replace(var.namespace, "/[_-]/", "-"),
     var.shared_prefix,
@@ -83,42 +96,34 @@ resource "google_project_iam_member" "viewer" {
   member  = google_service_account.self.member
 }
 
-resource "google_service_account_key" "self" {
-  service_account_id = google_service_account.self.name
-}
-# Add to secret manager - Optional
-resource "google_secret_manager_secret" "self" {
-  secret_id = "${var.gcsm_secret_prefix}${var.namespace}-sa"
-  project   = var.project_id
-  # labels # terraform, kubernetes, eso
-  labels = {
-    namespace = var.namespace
-    service   = "eso"
-  }
-  replication {
-    auto {}
-  }
-}
-resource "google_secret_manager_secret_version" "self" {
-  secret      = google_secret_manager_secret.self.id
-  secret_data = base64decode(google_service_account_key.self.private_key)
-}
-
-# Add secret to k8 namespace for ESO
-resource "kubernetes_secret" "sa" {
+## Create K8 service account
+resource "kubernetes_service_account" "self" {
   metadata {
-    name      = "${var.gcsm_secret_prefix}${var.namespace}-sa"
+    name      = "eso-${var.namespace}"
     namespace = var.namespace
+    annotations = {
+      "iam.gke.io/gcp-service-account" = google_service_account.self.email
+    }
+    #labels = {}
   }
-  data = {
-    secret-access-credentials = base64decode(google_service_account_key.self.private_key)
-  }
-  type = "Opaque"
+  #automount_service_account_token = false
   depends_on = [
-    google_service_account_key.self,
     kubernetes_namespace.self
   ]
 }
+## Allow ESO to impersonate the service account
+resource "google_service_account_iam_binding" "k8-service-account-iam" {
+  service_account_id = google_service_account.self.name
+  role               = "roles/iam.workloadIdentityUser"
+  members = [
+    "serviceAccount:${var.project_id}.svc.id.goog[${kubernetes_service_account.self.id}]",
+  ]
+  depends_on = [
+    google_service_account.self,
+    kubernetes_service_account.self,
+  ]
+}
+
 ###--------------------------------
 ### Define k8 namespace
 ###--------------------------------
@@ -127,38 +132,35 @@ resource "kubernetes_namespace" "self" {
     name = var.namespace
   }
 }
-# Manifest functions need terraform >=1.8 or opentofu
-# Will need custom terrateam workflow to define "engine"
-#   tf code should override, might not need
-# manifest_decode = yaml to object
-# manifest_encode = object to yaml
-# Try yaml functions
-#   yamldecode("")
-# or https://github.com/jrhouston/tfk8s but is a cli
+# https://github.com/jrhouston/tfk8s cli to convert k8s yaml to terraform
 ###--------------------------------
 ### ESO secret store manifest
 ###--------------------------------
-resource "kubernetes_manifest" "eso_secret_store" {
-  manifest = yamldecode(templatefile("${path.module}/templates/k8-eso-secret-store.yaml.tmpl", {
-    k8_namespace    = var.namespace
-    project_id      = var.project_id
-    service_account = "${var.gcsm_secret_prefix}${var.namespace}-sa"
-  }))
-  #field_manager {
-  #  name = "external-secrets"
-  #}
-  # wait {}
-  # timeouts {}
+# Kubernetes provider 2.35.1
+#   kubernetes_manifest could not manage ESO secret store with Workload Identity
+# Switched to kubectl provider
+resource "kubectl_manifest" "eso_secret_store" {
+  yaml_body = templatefile("${path.module}/templates/k8-eso-secret-store-wi.yaml.tmpl", {
+    cluster_location = var.cluster_location
+    cluster_name     = var.cluster_name
+    k8_namespace     = var.namespace
+    k8_sa_namespace  = replace(kubernetes_service_account.self.id, "/^(.*)[/].*$/", "$1")
+    project_id       = var.project_id
+    service_account  = replace(kubernetes_service_account.self.id, "/^.*[/](.*)$/", "$1")
+  })
   depends_on = [
-    kubernetes_secret.sa
+    kubernetes_service_account.self
   ]
 }
 resource "local_file" "k8_eso_secret_store" {
   count = var.local_manifests ? 1 : 0
-  content = templatefile("${path.module}/templates/k8-eso-secret-store.yaml.tmpl", {
-    k8_namespace    = var.namespace
-    project_id      = var.project_id
-    service_account = "${var.gcsm_secret_prefix}${var.namespace}-sa"
+  content = templatefile("${path.module}/templates/k8-eso-secret-store-wi.yaml.tmpl", {
+    cluster_location = var.cluster_location
+    cluster_name     = var.cluster_name
+    k8_namespace     = var.namespace
+    k8_sa_namespace  = replace(kubernetes_service_account.self.id, "/^(.*)[/].*$/", "$1")
+    project_id       = var.project_id
+    service_account  = replace(kubernetes_service_account.self.id, "/^.*[/](.*)$/", "$1")
   })
   filename        = "${path.module}/manifests/${var.project_id}/${var.namespace}/secret-store.yaml"
   file_permission = "0644"
@@ -167,20 +169,20 @@ resource "local_file" "k8_eso_secret_store" {
 ###--------------------------------
 ### ESO namespace secrets manifest
 ###--------------------------------
-resource "kubernetes_manifest" "eso_namespace_secrets" {
-  manifest = yamldecode(templatefile("${path.module}/templates/k8-eso-secret-rule.yaml.tmpl", {
-    k8_namespace       = var.namespace
-    k8_secret          = var.namespace_secret_name
-    gcsm_secret_prefix = var.gcsm_secret_prefix
-  }))
-  depends_on = [kubernetes_manifest.eso_secret_store]
+resource "kubectl_manifest" "eso_namespace_secrets" {
+  yaml_body = templatefile("${path.module}/templates/k8-eso-secret-rule.yaml.tmpl", {
+    k8_namespace        = var.namespace
+    k8_secret           = var.namespace_secret_name
+    gcpsm_secret_prefix = var.gcpsm_secret_prefix
+  })
+  depends_on = [kubectl_manifest.eso_secret_store]
 }
 resource "local_file" "eso_namespace_secrets" {
   count = var.local_manifests ? 1 : 0
   content = templatefile("${path.module}/templates/k8-eso-secret-rule.yaml.tmpl", {
-    k8_namespace       = var.namespace
-    k8_secret          = var.namespace_secret_name
-    gcsm_secret_prefix = var.gcsm_secret_prefix
+    k8_namespace        = var.namespace
+    k8_secret           = var.namespace_secret_name
+    gcpsm_secret_prefix = var.gcpsm_secret_prefix
   })
   filename        = "${path.module}/manifests/${var.project_id}/${var.namespace}/secrets-namespace.yaml"
   file_permission = "0644"
@@ -197,13 +199,13 @@ locals {
   shared_keys = [
     for key in var.shared_secrets : templatefile("${path.module}/templates/k8-eso-secret-key.yaml.tmpl", {
       k8_key     = key
-      gcp_secret = "${var.gcsm_secret_prefix}${var.shared_prefix}${var.secret_separator}${key}"
+      gcp_secret = "${var.gcpsm_secret_prefix}${var.shared_prefix}${var.secret_separator}${key}"
   })]
   shared_manifest = join("\n", concat([local.shared_header], local.shared_keys))
 }
-resource "kubernetes_manifest" "eso_shared_secrets" {
-  manifest   = yamldecode(local.shared_manifest)
-  depends_on = [kubernetes_manifest.eso_secret_store]
+resource "kubectl_manifest" "eso_shared_secrets" {
+  yaml_body  = local.shared_manifest
+  depends_on = [kubectl_manifest.eso_secret_store]
 }
 resource "local_file" "eso_shared_secrets" {
   count           = var.local_manifests ? 1 : 0
