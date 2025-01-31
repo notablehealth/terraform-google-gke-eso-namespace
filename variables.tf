@@ -22,6 +22,16 @@ variable "namespace_secret_name" {
   type        = string
   default     = "all"
 }
+variable "annotations" {
+  description = "Namespace annotations"
+  type        = map(string)
+  default     = {}
+}
+variable "labels" {
+  description = "Namespace labels"
+  type        = map(string)
+  default     = {}
+}
 variable "local_manifests" {
   description = "Create local manifests? Mostly for debugging"
   type        = bool

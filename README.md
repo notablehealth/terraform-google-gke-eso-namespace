@@ -113,9 +113,11 @@ No modules.
 
 | Name | Description | Type | Default | Required |
 |------|-------------|------|---------|:--------:|
+| <a name="input_annotations"></a> [annotations](#input\_annotations) | Namespace annotations | `map(string)` | `{}` | no |
 | <a name="input_cluster_location"></a> [cluster\_location](#input\_cluster\_location) | GKE cluster location | `string` | `"us-central1"` | no |
 | <a name="input_cluster_name"></a> [cluster\_name](#input\_cluster\_name) | GKE cluster name | `string` | n/a | yes |
 | <a name="input_gcpsm_secret_prefix"></a> [gcpsm\_secret\_prefix](#input\_gcpsm\_secret\_prefix) | Prefix for GCPSM secrets | `string` | `"k8-"` | no |
+| <a name="input_labels"></a> [labels](#input\_labels) | Namespace labels | `map(string)` | `{}` | no |
 | <a name="input_local_manifests"></a> [local\_manifests](#input\_local\_manifests) | Create local manifests? Mostly for debugging | `bool` | `false` | no |
 | <a name="input_namespace"></a> [namespace](#input\_namespace) | The name of the Kubernetes namespace to manage. | `string` | n/a | yes |
 | <a name="input_namespace_secret_name"></a> [namespace\_secret\_name](#input\_namespace\_secret\_name) | Kubernetes namespace secret name. | `string` | `"all"` | no |

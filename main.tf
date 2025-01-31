@@ -129,7 +129,12 @@ resource "google_service_account_iam_binding" "k8-service-account-iam" {
 ###--------------------------------
 resource "kubernetes_namespace" "self" {
   metadata {
-    name = var.namespace
+    annotations = var.annotations
+    labels      = var.labels
+    name        = var.namespace
+  }
+  lifecycle {
+    prevent_destroy = true
   }
 }
 # https://github.com/jrhouston/tfk8s cli to convert k8s yaml to terraform
