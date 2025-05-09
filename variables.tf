@@ -1,4 +1,3 @@
-
 variable "cluster_location" {
   description = "GKE cluster location"
   type        = string
@@ -64,4 +63,9 @@ variable "shared_secrets" {
   description = "Shared secrets list"
   type        = list(string)
   default     = []
+}
+variable "service_account_cluster_prefix" {
+  description = "Optional shorter prefix to use for the service account ID instead of the full cluster name"
+  type        = string
+  default     = null
 }

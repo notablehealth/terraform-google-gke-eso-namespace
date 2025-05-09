@@ -59,7 +59,7 @@
 ### GCP Service Account
 ###--------------------------------
 resource "google_service_account" "self" {
-  account_id   = "${var.gcpsm_secret_prefix}${var.cluster_name}-${var.namespace}"
+  account_id   = "${var.gcpsm_secret_prefix}${coalesce(var.service_account_cluster_prefix, var.cluster_name)}-${var.namespace}"
   description  = "Permissions for ESO to access secrets for ${var.namespace}"
   display_name = "ESO Secret Access for ${var.namespace}"
   project      = var.project_id
