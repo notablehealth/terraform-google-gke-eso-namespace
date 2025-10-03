@@ -218,3 +218,35 @@ resource "local_file" "eso_shared_secrets" {
   filename        = "${path.module}/manifests/${var.project_id}/${var.namespace}/secrets-shared.yaml"
   file_permission = "0644"
 }
+
+###--------------------------------
+### Group Permissions to Secrets Resources
+###--------------------------------
+locals {
+  user_role_manifest = templatefile("${path.module}/templates/k8-user-secret-role.yaml.tmpl", {
+    k8_namespace = var.namespace
+    user_group   = var.user_group_name
+  })
+  user_rolebinding_manifest = templatefile("${path.module}/templates/k8-user-secret-rolebinding.yaml.tmpl", {
+    k8_namespace = var.namespace
+    user_group   = var.user_group_name
+  })
+}
+resource "kubectl_manifest" "user_role" {
+  yaml_body = local.user_role_manifest
+}
+resource "kubectl_manifest" "user_rolebinding" {
+  yaml_body = local.user_rolebinding_manifest
+}
+resource "local_file" "user_role" {
+  count           = var.local_manifests ? 1 : 0
+  content         = local.user_role_manifest
+  filename        = "${path.module}/manifests/${var.project_id}/${var.namespace}/user-role.yaml"
+  file_permission = "0644"
+}
+resource "local_file" "user_rolebinding" {
+  count           = var.local_manifests ? 1 : 0
+  content         = local.user_rolebinding_manifest
+  filename        = "${path.module}/manifests/${var.project_id}/${var.namespace}/user-rolebinding.yaml"
+  file_permission = "0644"
+}
