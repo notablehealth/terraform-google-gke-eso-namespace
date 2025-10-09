@@ -31,6 +31,10 @@ variable "labels" {
   type        = map(string)
   default     = {}
 }
+variable "user_group_name" {
+  description = "Name of the GCP group used to grant user access to k8s secrets."
+  type        = string
+}
 variable "local_manifests" {
   description = "Create local manifests? Mostly for debugging"
   type        = bool
